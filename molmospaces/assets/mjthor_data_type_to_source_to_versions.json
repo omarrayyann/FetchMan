@@ -1,0 +1,21 @@
+{
+  "scenes": {
+    "ithor": "20251217",
+    "procthor-10k-train": "20251122",
+    "procthor-10k-val": "20251217",
+    "procthor-10k-test": "20251121",
+    "procthor-objaverse-train": "20251205",
+    "procthor-objaverse-val": "20251205",
+    "holodeck-objaverse-train": "20251217",
+    "holodeck-objaverse-val": "20251217"
+  },
+  "objects": {
+    "thor": "20251117",
+    "objaverse": "20260131",
+    "objathor_metadata": "20251117"
+  },
+  "grasps": {
+    "droid_objaverse": "20251218",
+    "droid": "20251116"
+  }
+}

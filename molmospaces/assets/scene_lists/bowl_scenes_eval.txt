@@ -1,0 +1,15 @@
+scenes/holodeck-objaverse-val/val_0.xml
+scenes/holodeck-objaverse-val/val_1.xml
+scenes/holodeck-objaverse-val/val_1001.xml
+scenes/holodeck-objaverse-val/val_1005.xml
+scenes/holodeck-objaverse-val/val_1009.xml
+scenes/procthor-10k-val/val_1.xml
+scenes/procthor-10k-val/val_10.xml
+scenes/procthor-10k-val/val_100.xml
+scenes/procthor-10k-val/val_101.xml
+scenes/procthor-10k-val/val_102.xml
+scenes/procthor-10k-val/val_105.xml
+scenes/procthor-objaverse-val/val_10.xml
+scenes/procthor-objaverse-val/val_100.xml
+scenes/procthor-objaverse-val/val_1001.xml
+scenes/procthor-objaverse-val/val_1003.xml

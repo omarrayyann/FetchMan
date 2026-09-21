@@ -1,0 +1,27 @@
+# Downloaded assets (fetched by molmospaces/scripts/run_download.sh).
+# The 5 sample scenes under assets/sample_scenes/ (plus their objects and grasps) are tracked.
+molmospaces/assets/scenes/
+# objects/ and grasps/ for the sample scenes ARE tracked (see README)
+
+molmospaces/assets/.lmdb/
+
+# Generated data
+/data*/
+logs
+MUJOCO_LOG.TXT
+download_scenes.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+.DS_Store
+
+# derived grasp-uid cache (regenerated on first run)
+molmospaces/assets/grasps/.valid_uids.txt
+
+# verification-harness output (written into the repo root when run)
+t_*.json

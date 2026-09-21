@@ -1,0 +1,17 @@
+{
+  "object": "results/static_objects/CD_1/CD_1_simplified.obj",
+  "object_scale": 1.0,
+  "object_position": [
+    0,
+    0,
+    0
+  ],
+  "object_rotation": [
+    1,
+    0,
+    0,
+    0
+  ],
+  "approach_distance": 0.3,
+  "num_grasps": 329
+}

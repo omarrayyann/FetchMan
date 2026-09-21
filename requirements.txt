@@ -1,0 +1,22 @@
+# Simulation + data collection (molmospaces)
+mujoco
+mink
+onnxruntime
+numpy==2.2.6
+scipy
+gymnasium
+ml_collections
+Pillow
+opencv-python
+tqdm
+
+# LeRobot dataset format (episode recording)
+lerobot==0.4.4
+pyarrow
+av             # direct use in the video-concat patch
+absl-py
+torch          # fisheye LUT resampling only (no training in this repo)
+
+# Asset download (molmospaces/scripts/download_*.py)
+molmospaces_resources
+requests

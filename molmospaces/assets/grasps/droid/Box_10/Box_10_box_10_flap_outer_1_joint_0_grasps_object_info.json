@@ -1,0 +1,17 @@
+{
+  "object": "results/articulable_objects/Box_10/Box_10_box_10_flap_outer_1_joint_0.obj",
+  "object_scale": 1.0,
+  "object_position": [
+    0,
+    0,
+    0
+  ],
+  "object_rotation": [
+    1,
+    0,
+    0,
+    0
+  ],
+  "approach_distance": 0.6,
+  "num_grasps": 1000
+}

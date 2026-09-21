@@ -1,0 +1,214 @@
+[
+  {
+    "joint": "Box_10_box_10_flap_inner_1_joint_0",
+    "handle_mesh": "Box_10_box_10_flap_inner_1_joint_0.obj",
+    "handle_geoms": [
+      "Box_10_box_10_flap_inner_1"
+    ],
+    "joint_info": {
+      "name": "Box_10_box_10_flap_inner_1_joint_0",
+      "type": "unknown",
+      "axis": "-1 0 0",
+      "range": "0 2.91219",
+      "pos": "0 0 0",
+      "limited": "false",
+      "damping": "0.01",
+      "frictionloss": "0.01",
+      "parent_body": "Box_10_box_10_flap_inner_1",
+      "body_hierarchy": "Box_10/Box_10_box_10_flap_inner_1",
+      "position": {
+        "x": -0.00215105,
+        "y": 0.131826,
+        "z": 0.127438
+      },
+      "rotation_axis": {
+        "x": -1.0,
+        "y": 8.52673671001143e-10,
+        "z": 7.401625292568116e-09
+      },
+      "local_position": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "local_axis": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "parent_position": {
+        "x": -0.00215105,
+        "y": 0.131826,
+        "z": 0.127438
+      },
+      "parent_rotation": {
+        "w": 0.11444396600808719,
+        "x": 0.9934297049335397,
+        "y": -0.0,
+        "z": -3.725288893522309e-09
+      }
+    },
+    "grasps_file": "Box_10_box_10_flap_inner_1_joint_0_grasps.json",
+    "filtered_grasps_file": "Box_10_box_10_flap_inner_1_joint_0_grasps_filtered.npz",
+    "filtered_object_info": "Box_10_box_10_flap_inner_1_joint_0_grasps_object_info.json"
+  },
+  {
+    "joint": "Box_10_box_10_flap_inner_2_joint_0",
+    "handle_mesh": "Box_10_box_10_flap_inner_2_joint_0.obj",
+    "handle_geoms": [
+      "Box_10_box_10_flap_inner_2"
+    ],
+    "joint_info": {
+      "name": "Box_10_box_10_flap_inner_2_joint_0",
+      "type": "unknown",
+      "axis": "-1 0 0",
+      "range": "-3.06698 0",
+      "pos": "0 0 0",
+      "limited": "false",
+      "damping": "0.01",
+      "frictionloss": "0.01",
+      "parent_body": "Box_10_box_10_flap_inner_2",
+      "body_hierarchy": "Box_10/Box_10_box_10_flap_inner_2",
+      "position": {
+        "x": -0.00215105,
+        "y": 0.131826,
+        "z": -0.126876
+      },
+      "rotation_axis": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "local_position": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "local_axis": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "parent_position": {
+        "x": -0.00215105,
+        "y": 0.131826,
+        "z": -0.126876
+      },
+      "parent_rotation": {
+        "w": 0.037292314915898,
+        "x": -0.999304399694214,
+        "y": -0.0,
+        "z": -0.0
+      }
+    },
+    "grasps_file": "Box_10_box_10_flap_inner_2_joint_0_grasps.json",
+    "filtered_grasps_file": "Box_10_box_10_flap_inner_2_joint_0_grasps_filtered.npz",
+    "filtered_object_info": "Box_10_box_10_flap_inner_2_joint_0_grasps_object_info.json"
+  },
+  {
+    "joint": "Box_10_box_10_flap_outer_1_joint_0",
+    "handle_mesh": "Box_10_box_10_flap_outer_1_joint_0.obj",
+    "handle_geoms": [
+      "Box_10_box_10_flap_outer_1"
+    ],
+    "joint_info": {
+      "name": "Box_10_box_10_flap_outer_1_joint_0",
+      "type": "unknown",
+      "axis": "0 0 1",
+      "range": "-2.93938 0",
+      "pos": "0 0 0",
+      "limited": "false",
+      "damping": "0.01",
+      "frictionloss": "0.01",
+      "parent_body": "Box_10_box_10_flap_outer_1",
+      "body_hierarchy": "Box_10/Box_10_box_10_flap_outer_1",
+      "position": {
+        "x": -0.133846,
+        "y": 0.134112,
+        "z": 0.00015121
+      },
+      "rotation_axis": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 1.0
+      },
+      "local_position": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "local_axis": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 1.0
+      },
+      "parent_position": {
+        "x": -0.133846,
+        "y": 0.134112,
+        "z": 0.00015121
+      },
+      "parent_rotation": {
+        "w": 0.10092797313196791,
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.9948937351493741
+      }
+    },
+    "grasps_file": "Box_10_box_10_flap_outer_1_joint_0_grasps.json",
+    "filtered_grasps_file": "Box_10_box_10_flap_outer_1_joint_0_grasps_filtered.npz",
+    "filtered_object_info": "Box_10_box_10_flap_outer_1_joint_0_grasps_object_info.json"
+  },
+  {
+    "joint": "Box_10_box_10_flap_outer_2_joint_0",
+    "handle_mesh": "Box_10_box_10_flap_outer_2_joint_0.obj",
+    "handle_geoms": [
+      "Box_10_box_10_flap_outer_2"
+    ],
+    "joint_info": {
+      "name": "Box_10_box_10_flap_outer_2_joint_0",
+      "type": "unknown",
+      "axis": "0 0 1",
+      "range": "0 2.71177",
+      "pos": "0 0 0",
+      "limited": "false",
+      "damping": "0.01",
+      "frictionloss": "0.01",
+      "parent_body": "Box_10_box_10_flap_outer_2",
+      "body_hierarchy": "Box_10/Box_10_box_10_flap_outer_2",
+      "position": {
+        "x": 0.129561,
+        "y": 0.134112,
+        "z": 0.00015121
+      },
+      "rotation_axis": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 1.0
+      },
+      "local_position": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "local_axis": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 1.0
+      },
+      "parent_position": {
+        "x": 0.129561,
+        "y": 0.134112,
+        "z": 0.00015121
+      },
+      "parent_rotation": {
+        "w": 0.2132629640445071,
+        "x": 0.0,
+        "y": 0.0,
+        "z": -0.9769948352816157
+      }
+    },
+    "grasps_file": "Box_10_box_10_flap_outer_2_joint_0_grasps.json",
+    "filtered_grasps_file": "Box_10_box_10_flap_outer_2_joint_0_grasps_filtered.npz",
+    "filtered_object_info": "Box_10_box_10_flap_outer_2_joint_0_grasps_object_info.json"
+  }
+]
