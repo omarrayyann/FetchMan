@@ -2,14 +2,14 @@
 
 *Learning Visual Humanoid Loco-Manipulation Policies from Simulated Experiences*
 
-[Website](https://www.orayyan.com/fetchman) · [Paper](https://arxiv.org/abs/2608.17027)
+[Website](https://www.orayyan.com/fetchman) · [Paper](https://arxiv.org/abs/2608.17027) · [Data](https://huggingface.co/datasets/allenai/fetchman-data)
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/1721c6c0-060a-4661-b4fb-bb7ec2c10746" width="100%" alt="Scripted pick demonstrations collected in parallel across randomized houses">
 </p>
 
 - [x] Data Generation
-- [ ] HF Data Release
+- [x] HF Data Release
 - [ ] Behavior Cloning
 - [ ] Reinforcement Learning
 - [ ] Benchmark
