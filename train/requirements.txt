@@ -1,0 +1,12 @@
+# Behaviour-cloning extras, on top of the repo-root requirements.txt.
+#   pip install -r requirements.txt -r train/requirements.txt
+lightning
+torchvision
+torchcodec        # video decoding for LeRobot datasets
+transformers      # DINOv3 / DINO-txt encoders
+diffusers         # flow-matching schedulers
+pandas
+matplotlib
+imageio
+wandb             # optional: logging, disabled with --test
+typing_extensions

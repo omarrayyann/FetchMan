@@ -25,3 +25,8 @@ molmospaces/assets/grasps/.valid_uids.txt
 
 # verification-harness output (written into the repo root when run)
 t_*.json
+
+# training run output
+exp/
+lightning_logs/
+wandb/
