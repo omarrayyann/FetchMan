@@ -75,6 +75,10 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--cache-dir", type=Path,
                    default=Path("~/.cache/molmo-spaces-resources").expanduser(),
                    help="Where extracted archives live")
+    p.add_argument("--benchmark", nargs="+", default=None, metavar="NAME",
+                   help="Install exactly the scenes these benchmarks replay (names under "
+                        "molmospaces/assets/eval_sets/, e.g. bowls all) and skip the "
+                        "per-source counts.")
     p.add_argument("--start", type=int, default=0,
                    help="Skip the first N archives per source before applying the "
                         "count. Lets a second machine grab a disjoint slice: "
@@ -137,6 +141,59 @@ def setup_env(args):
     print(f"[setup] ASSETS_DIR   = {assets_dir}")
     print(f"[setup] CACHE_DIR    = {args.cache_dir}")
     return assets_dir, args.cache_dir, rm
+
+
+def ensure_scene_sources(rm, sources) -> None:
+    """Give each scene source its assets/scenes/<source>/ dir, so its archives are listable.
+
+    setup_resource_manager only runs the library's setup() when the local
+    manifest says something is missing. The repo tracks that manifest with every
+    source listed, so on a machine that already has a cache, a fresh checkout
+    never gets these dirs and every source looks empty. setup() itself is not an
+    option: it reinstalls every source and deletes the partially tracked
+    objects/thor and grasps/droid dirs. Setting up one scene source only creates
+    its own dir.
+    """
+    from molmospaces_resources.constants import LOCAL_MANIFEST_NAME
+    from molmospaces_resources.file_utils import load_json_manifest, save_json_manifest
+
+    missing = [s for s in sources if not rm.symlink_path("scenes", s).is_dir()]
+    if not missing:
+        return
+    cache_manifest = load_json_manifest(rm.cache_dir / LOCAL_MANIFEST_NAME)
+    symlink_manifest = load_json_manifest(rm.symlink_dir / LOCAL_MANIFEST_NAME)
+    for source in missing:
+        cache_manifest.setdefault("scenes", {}).setdefault(source, [])
+        symlink_manifest.setdefault("scenes", {}).setdefault(source, None)
+        rm._setup_source("scenes", source, VERSIONS["scenes"][source],
+                         cache_manifest, symlink_manifest)
+    # The cache manifest is local state; the symlink one is tracked and already
+    # lists these sources, so leave it alone.
+    save_json_manifest(rm.cache_dir / LOCAL_MANIFEST_NAME, cache_manifest)
+
+
+def benchmark_plan(names, assets_dir: Path, rm) -> dict[str, list[str]]:
+    """Per-source archives for every scene the named benchmarks replay.
+
+    Scene archives are named {source}_{scene stem}.tar.zst, so a benchmark's
+    episode list is enough to install exactly what it needs.
+    """
+    plan: dict[str, set[str]] = defaultdict(set)
+    for name in names:
+        eval_set = assets_dir / "eval_sets" / f"{name}.jsonl"
+        if not eval_set.exists():
+            known = ", ".join(sorted(f.stem for f in (assets_dir / "eval_sets").glob("*.jsonl")))
+            raise SystemExit(f"unknown benchmark {name!r}; known: {known}")
+        for line in open(eval_set):
+            if line.strip():
+                _, source, scene = json.loads(line)["scene"].split("/")
+                plan[source].add(f"{source}_{Path(scene).stem}.tar.zst")
+    ensure_scene_sources(rm, plan)
+    for source, archives in plan.items():
+        missing = archives - set(rm.find_all_packages_for_source("scenes", source))
+        if missing:
+            raise SystemExit(f"{source}: no archive for {sorted(missing)[:3]}")
+    return {source: sorted(archives) for source, archives in plan.items()}
 
 
 def collect_plan(args, rm) -> dict[str, list[str]]:
@@ -303,6 +360,29 @@ def install_grasps(rm) -> None:
         rm.install_packages("grasps", {source: archives})
 
 
+def _merge_links(src: Path, dst: Path, top: bool = True) -> int:
+    """Symlink everything under src that dst lacks; returns how many links were made.
+
+    The repo tracks a few objects and grasps directly so the sample scenes run
+    without a download, which leaves partial directories such as
+    objects/thor/Kitchen Objects/. Linking only missing top-level entries would
+    treat those as complete and leave every other object under them missing, so
+    recurse into any directory that exists on both sides.
+    """
+    linked = 0
+    for entry in src.iterdir():
+        # Skip extraction markers, and the manifests at the version dir's top.
+        if entry.name.startswith(".") or (top and entry.name.startswith("mjthor_")):
+            continue
+        target = dst / entry.name
+        if not (target.exists() or target.is_symlink()):
+            os.symlink(entry, target, target_is_directory=entry.is_dir())
+            linked += 1
+        elif entry.is_dir() and target.is_dir() and not target.is_symlink():
+            linked += _merge_links(entry, target, top=False)
+    return linked
+
+
 def post_install_fixup(cache_dir: Path, assets_dir: Path) -> None:
     """Re-symlink sources that were materialised as real dirs; safe to re-run."""
     GLOBAL_PAIRS = [
@@ -325,17 +405,8 @@ def post_install_fixup(cache_dir: Path, assets_dir: Path) -> None:
             print(f"  {data_type}/{source}: managed symlink (skipped)")
             continue
         target_dir.mkdir(parents=True, exist_ok=True)
-        linked = already = 0
-        for entry in cache_versioned.iterdir():
-            if not entry.is_dir():
-                continue
-            link_target = target_dir / entry.name
-            if link_target.exists() or link_target.is_symlink():
-                already += 1
-            else:
-                os.symlink(entry, link_target, target_is_directory=True)
-                linked += 1
-        print(f"  {data_type}/{source}: linked {linked} new (already had {already})")
+        linked = _merge_links(cache_versioned, target_dir)
+        print(f"  {data_type}/{source}: linked {linked} new entries")
 
 
 def verify(assets_dir: Path) -> None:
@@ -360,7 +431,8 @@ def main():
     args = build_argparser().parse_args()
     assets_dir, cache_dir, rm = setup_env(args)
 
-    plan = collect_plan(args, rm)
+    plan = (benchmark_plan(args.benchmark, assets_dir, rm) if args.benchmark
+            else collect_plan(args, rm))
     if plan:
         print_plan_summary(plan, rm)
     else:

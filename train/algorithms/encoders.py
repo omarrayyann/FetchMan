@@ -1,5 +1,5 @@
 from functools import partial
-from transformers import AutoModel
+from transformers import AutoConfig, AutoModel
 import torch
 import torch.nn as nn
 
@@ -48,10 +48,20 @@ class DINOv3PatchEncoder(nn.Module):
         freeze: bool = True,
         fusion_dim: int = 512,
         n_special_tokens: int = 5,  # DINOv3: 1 CLS + 4 register tokens
+        backbone_config: dict = None,
     ):
-        """DINOv3 patch-token encoder: per-view learned tokens + adapter, emits visual tokens for a DiT."""
+        """DINOv3 patch-token encoder: per-view learned tokens + adapter, emits visual tokens for a DiT.
+
+        backbone_config builds the backbone from its architecture alone. A policy
+        checkpoint stores every backbone weight, so loading one this way skips the
+        download of Meta's gated pretrained weights; only training needs them.
+        """
         super().__init__()
-        self.backbone = AutoModel.from_pretrained(model_name)
+        if backbone_config:
+            cfg = dict(backbone_config)
+            self.backbone = AutoModel.from_config(AutoConfig.for_model(cfg.pop("model_type"), **cfg))
+        else:
+            self.backbone = AutoModel.from_pretrained(model_name)
         self.freeze = freeze
         self.fusion_dim = int(fusion_dim)
         self.n_special = int(n_special_tokens)

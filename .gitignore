@@ -1,7 +1,16 @@
 # Downloaded assets (fetched by molmospaces/scripts/run_download.sh).
 # The 5 sample scenes under assets/sample_scenes/ (plus their objects and grasps) are tracked.
 molmospaces/assets/scenes/
-# objects/ and grasps/ for the sample scenes ARE tracked (see README)
+# objects/ and grasps/ for the sample scenes ARE tracked (see README); the
+# sources the downloader adds alongside them are symlinks into a local cache.
+molmospaces/assets/objects/objaverse
+molmospaces/assets/objects/objathor_metadata
+molmospaces/assets/grasps/droid_objaverse
+# The downloader also links the rest of thor and droid into these partially
+# tracked dirs. Ignoring never untracks a file, so the sample-scene subset stays
+# versioned; adding a new tracked asset here takes `git add -f`.
+molmospaces/assets/objects/thor/**
+molmospaces/assets/grasps/droid/**
 
 molmospaces/assets/.lmdb/
 
@@ -30,3 +39,6 @@ t_*.json
 exp/
 lightning_logs/
 wandb/
+
+# Released policy checkpoints (hf download omarrayyann/fetchman).
+checkpoints/

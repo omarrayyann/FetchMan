@@ -157,8 +157,9 @@ def _env_worker(rank: int, conn, env_cfg_dict: dict, egl_device_id: int, seed: i
                 action_repeat = int(payload["action_repeat"])
                 time_limit = float(payload["time_limit"])
                 max_steps = int(payload["max_steps"])
-                _do_reset()
-                conn.send(("ready", {"obs_history": list(history)}))
+                if payload.get("reset", True):
+                    _do_reset()
+                conn.send(("ready", {"obs_history": list(history) if history is not None else []}))
             elif cmd == "set_time_limit":
                 # Run the deterministic eval at a different per-episode limit than
                 # training rollouts (workers are reused, so init's time_limit
@@ -376,8 +377,13 @@ class VecEnv:
             self._procs.append(p)
 
     def init_workers(self, obs_horizon, action_horizon, action_repeat,
-                     time_limit, max_steps, use_delta):
-        """Broadcast rollout hyperparameters to all workers and collect their ready payloads."""
+                     time_limit, max_steps, use_delta, reset=True):
+        """Broadcast rollout hyperparameters to all workers and collect their ready payloads.
+
+        reset=False skips the sampled reset: a worker that will only replay
+        restored states never needs one, and the env config it boots with may
+        not even be able to place a robot.
+        """
         for c in self._parents:
             c.send(("init", {
                 "obs_horizon": obs_horizon,
@@ -386,9 +392,10 @@ class VecEnv:
                 "time_limit": time_limit,
                 "max_steps": max_steps,
                 "use_delta": use_delta,
+                "reset": reset,
             }))
         # Collect initial "ready" messages. The pipes MAY contain stale "done"
-        # messages from a previous rollout's still-executing workers — discard
+        # messages from a previous rollout's still-executing workers; discard
         # those and keep reading until we see "ready" from every worker.
         out = [None] * len(self._parents)
         remaining = list(range(len(self._parents)))
@@ -398,7 +405,7 @@ class VecEnv:
                 i = self._parents.index(c)
                 cmd, payload = c.recv()
                 if cmd != "ready":
-                    continue  # stale message from prior rollout — drain and wait for the real "ready"
+                    continue  # stale message from prior rollout; drain and wait for the real "ready"
                 out[i] = payload
                 remaining.remove(i)
         return out  # list of {"obs_history": [...]}
@@ -450,7 +457,7 @@ class VecEnv:
     def set_tasks_async(self, seeds_per_env, freeze_subsequent=True):
         """Non-blocking variant: dispatch set_task to all workers and return.
         Call wait_set_tasks_ready() to drain the responses before next use.
-        Lets the PPO update overlap with worker reset (scene reload + snapshot)."""
+        Lets the update overlap with worker reset (scene reload + snapshot)."""
         assert len(seeds_per_env) == len(self._parents)
         if getattr(self, "_pending_set_tasks", False):
             # Stale prefetch (e.g. interrupted by an eval that reused these workers).

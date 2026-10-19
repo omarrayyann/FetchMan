@@ -2,7 +2,7 @@
 
 *Learning Visual Humanoid Loco-Manipulation Policies from Simulated Experiences*
 
-[Website](https://www.orayyan.com/fetchman) · [Paper](https://arxiv.org/abs/2608.17027) · [Data](https://huggingface.co/datasets/allenai/fetchman-data)
+[Website](https://www.orayyan.com/fetchman) · [Paper](https://arxiv.org/abs/2608.17027) · [Data](https://huggingface.co/datasets/allenai/fetchman-data) · [Checkpoints](https://huggingface.co/omarrayyann/fetchman)
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/1721c6c0-060a-4661-b4fb-bb7ec2c10746" width="100%" alt="Scripted pick demonstrations collected in parallel across randomized houses">
@@ -59,7 +59,7 @@ python -u train/main.py \
 ```bash
 # export 200 successful resets to replay as a fixed eval set
 python main.py --env=molmospaces/configs/bowl_pick.py --episodes=450 \
-    --save_json=molmospaces/assets/eval_sets/bowl_pick_200.jsonl
+    --save_json=molmospaces/assets/eval_sets/bowl_pick.jsonl
 
 python -u rl/main.py \
     --checkpoint=exp/g1/Debug/<run>/step=00016000.ckpt \
@@ -69,11 +69,38 @@ python -u rl/main.py \
     --time_limit=40 --max_steps_per_episode=15000 \
     --gpu=0 --render_gpus=1,2,3,4,5,6,7 \
     --eval_every_n_updates=10 --save_every_n_updates=10 \
-    --eval_episodes_json=molmospaces/assets/eval_sets/bowl_pick_200.jsonl \
+    --benchmark=bowl_pick \
     --run_name=bowl_pick_grpo
 ```
 
 <img src="https://github.com/user-attachments/assets/2b4d1b00-ec03-4f3a-952f-8c6531dabc6d" width="100%" alt="Benchmark success rate, episode length, and fraction of groups giving gradient">
+
+## Benchmark
+
+`bowls` holds 100 bowl picks across 10 held-out houses, each a saved reset state the benchmark restores exactly.
+
+1. Download the BC and RL checkpoints, and the houses the benchmark uses.
+
+```bash
+hf download omarrayyann/fetchman --local-dir checkpoints
+python molmospaces/scripts/download_scenes.py --benchmark bowls
+```
+
+2. Score a checkpoint (`bowls_bc` or `bowls_rl`).
+
+```bash
+python benchmark/main.py --checkpoint=checkpoints/bowls_rl/model.ckpt --benchmark=bowls \
+    --gpu=0 --render_gpus=1,2,3,4,5,6,7
+```
+
+| bowls | success rate |
+|---|---|
+| Behavior Cloning | 62 |
+| + Reinforcement Learning | 79 |
+
+<img src="https://huggingface.co/omarrayyann/fetchman/resolve/main/media/bowls_bc_vs_rl.gif" width="100%" alt="The same five bowls episodes rolled out by BC (top) and BC + RL (bottom); green marks a success, red a failure">
+
+Success rates are noisy: one pass over 100 episodes moves by several points. A larger benchmark will be added.
 
 ## Citation
 

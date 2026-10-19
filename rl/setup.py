@@ -5,13 +5,13 @@ loop in main.py reads as a loop instead of a thousand lines of wiring.
 """
 import copy
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
 import torch
 from absl import flags
 
-import sys
 ROOT_DIR = Path(__file__).resolve().parents[1]
 TRAIN_DIR = ROOT_DIR / "train"
 for _p in (ROOT_DIR, TRAIN_DIR):
@@ -19,8 +19,30 @@ for _p in (ROOT_DIR, TRAIN_DIR):
         sys.path.insert(0, str(_p))
 
 from algorithms import agents
+from algorithms.flow_policy import get_config as get_agent_config
+from molmospaces.agents.policy import G1Controller
+from molmospaces.env import make_env
 
 FLAGS = flags.FLAGS
+
+
+def control_timing(env_cfg, policy, fps, seed):
+    """(action_repeat, step_dt, image_keys) read off a throwaway probe env.
+
+    The probe needs G1Controller applied: set_env() overrides the timestep to
+    0.005 and n_substeps to 1, so without it the probe reads 0.02s, the workers
+    run 0.005s, and action_repeat comes out 4x wrong.
+    """
+    env = make_env({**env_cfg, "seed": seed + 999})
+    controller = G1Controller()
+    controller.setup(env.scene.model, env.scene.data)
+    controller.set_env(env)
+    step_dt = env.robot.n_substeps * env.scene.model.opt.timestep
+    action_repeat = max(1, int(round((1.0 / step_dt) / fps)))
+    image_keys = [k for k in env.cameras if f"observation.{k}" in policy.obs_keys]
+    if hasattr(env, "close"):
+        env.close()
+    return action_repeat, step_dt, image_keys
 
 
 def camera_shapes(payload):
@@ -28,56 +50,66 @@ def camera_shapes(payload):
     return [shape for k, shape in payload["example_shapes"].items() if k.endswith("_image")]
 
 
-def load_policy(device):
-    """Rebuild the BC policy from --checkpoint, plus its frozen KL reference.
+def load_checkpoint(path, device, num_sampling_steps=10, use_ema=True, base_config=None):
+    """Rebuild a FlowPolicy from a BC or RL checkpoint.
 
-    Returns (policy, ref_policy, config, payload, fps, ckpt_dir). ref_policy is
-    None unless --kl_beta > 0, since nothing else reads it.
+    BC checkpoints are Lightning's, holding EMA weights under `state_dict` and
+    the raw training weights under `current_model_state`; RL checkpoints are a
+    plain {"state_dict", "update", "sr"}. Constructing the policy and loading the
+    weights directly handles both, so an RL checkpoint needs no Lightning
+    version patched in before it can be evaluated or resumed.
+
+    The architecture comes from the checkpoint directory's flags.json, so
+    `base_config` only supplies the runtime-only keys (default: the agent
+    config's own defaults). Returns (policy, config, payload, fps).
     """
-    ckpt_dir = Path(FLAGS.checkpoint).resolve().parent
-    payload = json.load(open(ckpt_dir / "stats.json"))
+    path = Path(path).resolve()
+    payload = json.load(open(path.parent / "stats.json"))
     dataset_stats = {k: {sk: np.asarray(sv, dtype=np.float32) for sk, sv in v.items()}
                      for k, v in payload["stats"].items()}
     example_data = {k: torch.zeros(shape, dtype=torch.float32)
                     for k, shape in payload["example_shapes"].items()}
-    fps = payload.get("fps", 10)
 
-    config = FLAGS.agent
-    RUNTIME_DENYLIST = {"num_sampling_steps", "stabilization_level", "clip_noise",
-                        "uncertainty_scale", "num_training_steps"}
-    if (ckpt_dir / "flags.json").exists():
-        saved = json.load(open(ckpt_dir / "flags.json"))
-        for k, v in saved.get("agent", {}).items():
-            if k in RUNTIME_DENYLIST: continue
-            if k in config and config[k] != v: config[k] = v
+    config = base_config if base_config is not None else get_agent_config()
+    runtime_only = {"num_sampling_steps", "stabilization_level", "clip_noise",
+                    "uncertainty_scale", "num_training_steps"}
+    flags_json = path.parent / "flags.json"
+    if flags_json.exists():
+        for k, v in json.load(open(flags_json)).get("agent", {}).items():
+            if k not in runtime_only and k in config:
+                config[k] = v
     config["num_training_steps"] = 1
-    # Finetune default: 10 flow steps (the agent config defaults to 20 for BC/eval_ckpt).
-    # num_sampling_steps is in RUNTIME_DENYLIST so flags.json won't restore the BC value.
-    config["num_sampling_steps"] = int(FLAGS.num_sampling_steps)
+    config["num_sampling_steps"] = int(num_sampling_steps)
 
-    model_cls = agents[config["agent_name"]]
-    policy = model_cls.load_from_checkpoint(
-        FLAGS.checkpoint, config=config, example_data=example_data,
-        dataset_stats=dataset_stats, map_location=device,
-    ).to(device).train()
-    # load_from_checkpoint reads state_dict, the EMA weights. Raw training
-    # weights live under current_model_state and are loaded over the top.
-    if not FLAGS.use_ema_weights:
-        _raw = torch.load(FLAGS.checkpoint, map_location="cpu", weights_only=False)
-        if isinstance(_raw, dict) and "current_model_state" in _raw:
-            missing, unexpected = policy.load_state_dict(_raw["current_model_state"], strict=False)
-            print(f"[ppo] loaded RAW weights (current_model_state); EMA state_dict ignored "
-                  f"(missing={len(missing)}, unexpected={len(unexpected)})")
-        else:
-            print("[ppo] --use_ema_weights=False but checkpoint has no current_model_state; "
-                  "keeping the loaded state_dict")
-        del _raw
-    # Reference (frozen) — for KL only.
+    ckpt = torch.load(path, map_location="cpu", weights_only=False)
+    weights = ckpt["state_dict"]
+    if not use_ema:
+        if "current_model_state" not in ckpt:
+            raise ValueError(f"{path.name} has no raw weights (current_model_state); "
+                             "only BC checkpoints carry both EMA and raw")
+        weights = ckpt["current_model_state"]
+    policy = agents[config["agent_name"]](config, example_data=example_data,
+                                          dataset_stats=dataset_stats)
+    policy.load_state_dict(weights, strict=True)
+    return policy.to(device), config, payload, payload.get("fps", 10)
+
+
+def load_policy(device):
+    """The --checkpoint policy for training, plus its frozen KL reference.
+
+    Returns (policy, ref_policy, config, payload, fps, ckpt_dir); ref_policy is
+    None unless --kl_beta > 0, since nothing else reads it.
+    """
+    policy, config, payload, fps = load_checkpoint(
+        FLAGS.checkpoint, device, num_sampling_steps=FLAGS.num_sampling_steps,
+        use_ema=FLAGS.use_ema_weights, base_config=FLAGS.agent)
+    policy.train()
     ref_policy = None
     if FLAGS.kl_beta > 0:
         ref_policy = copy.deepcopy(policy).eval()
-        for p in ref_policy.parameters(): p.requires_grad_(False)
-    return policy, ref_policy, config, payload, fps, ckpt_dir
+        for p in ref_policy.parameters():
+            p.requires_grad_(False)
+    return policy, ref_policy, config, payload, fps, Path(FLAGS.checkpoint).resolve().parent
 
 
 def build_replicas(policy, policy_devices):
@@ -146,7 +178,7 @@ def build_env_config(payload):
                 # Keep the .txt path so workers get the full list: pinning
                 # scene to resolved_scenes[0] collapses the pool and _try_reset
                 # only swaps when len(scene_paths) > 1.
-                print(f"[ppo] {len(resolved_scenes)} scenes pool — workers rotate per reset "
+                print(f"[rl] {len(resolved_scenes)} scenes pool, workers rotate per reset "
                       f"(cfg.randomize_scene=True, freq={env_cfg.get('randomize_scene_freq', 1)})")
             else:
                 gs_for_scene = FLAGS.parallel_envs // FLAGS.num_groups  # envs per group
@@ -156,7 +188,7 @@ def build_env_config(payload):
                     for i in range(FLAGS.parallel_envs)
                 ]
                 scene_assign_msg = "assigned round-robin per GRPO group"
-                print(f"[ppo] {len(resolved_scenes)} scenes assigned round-robin to "
+                print(f"[rl] {len(resolved_scenes)} scenes assigned round-robin to "
                       f"{FLAGS.parallel_envs} workers ({scene_assign_msg}, persistent)")
                 env_cfg = dict(env_cfg)
                 env_cfg["scene"] = str(resolved_scenes[0])

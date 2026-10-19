@@ -84,6 +84,9 @@ class FlowPolicy(L.LightningModule):
             dino_model = config.get('dino_model', None)
             if dino_model and 'dino' in str(config['encoder']):
                 enc_kwargs['model_name'] = str(dino_model)
+            if config.get('dino_config') and config['encoder'].startswith('dinov3_patches'):
+                enc_kwargs['backbone_config'] = config['dino_config'].to_dict() \
+                    if hasattr(config['dino_config'], 'to_dict') else dict(config['dino_config'])
             self.encoder = encoders[config['encoder']](obs_shapes, **enc_kwargs)
             self.config['observation_dim'] = self.encoder.out_dim
         else:
@@ -400,6 +403,9 @@ def get_config():
         # DINOv3 backbone override. None -> encoder's default (vitb16, ~86M).
         # e.g. 'facebook/dinov3-vitl16-pretrain-lvd1689m' for the ~300M model.
         dino_model=placeholder(str),
+        # The backbone's architecture, set in released checkpoints so loading one
+        # builds it without downloading the gated pretrained weights.
+        dino_config=placeholder(dict),
         augment=True,
         timestep_sampling='beta',
         timestep_beta_alpha=1.5,

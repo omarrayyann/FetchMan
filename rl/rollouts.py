@@ -6,15 +6,12 @@ from pathlib import Path
 import numpy as np
 import torch
 import tqdm
-from absl import flags
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 TRAIN_DIR = ROOT_DIR / "train"
 for _p in (ROOT_DIR, TRAIN_DIR):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
-
-FLAGS = flags.FLAGS
 
 from utils.action_transforms import DELTA_DIMS, anchor_from_obs
 from flow_sde import sample_actions_sde
@@ -48,10 +45,15 @@ def collect_rollouts(policy, vec_env, schedule, sigmas, device,
                      image_keys, n_episodes: int, time_limit: float,
                      max_steps: int, obs_horizon: int, action_horizon: int,
                      action_repeat: int, video_path: str = None,
-                     policy_replicas=None, group_ids=None, skip_init_workers=False):
+                     policy_replicas=None, group_ids=None, skip_init_workers=False,
+                     default_object: str = "", dispatch_wait_ms: float = 30.0,
+                     capture_first_frames: bool = False):
     """Async rollout: workers run their own chunk-batches and report when done.
     Master batches policy fwd across whichever workers are ready at any moment.
-    Slow workers no longer block fast ones."""
+    Slow workers no longer block fast ones.
+
+    default_object is the text condition for an obs with no per-episode object
+    tag."""
     N = vec_env.n_envs
     use_delta = policy.config.get("use_action_delta", True)
 
@@ -108,7 +110,6 @@ def collect_rollouts(policy, vec_env, schedule, sigmas, device,
 
     # Optional: stash each episode's first head-cam frame (post-reset obs) so the
     # caller can write a per-update grid PNG verifying group-mates are identical.
-    capture_first_frames = bool(FLAGS.first_frame_grid_dir)
     # Each group collects exactly its own quota.
     if group_ids is not None:
         n_groups = max(group_ids) + 1
@@ -165,13 +166,7 @@ def collect_rollouts(policy, vec_env, schedule, sigmas, device,
         """Run the policy on one replica. Called from a thread.
         Uses a dedicated CUDA stream so multiple replicas can compute in
         parallel on different GPUs. Also returns the cached encoder output
-        so we can skip the encoder during the update.
-
-        bf16 autocast: the rollout-time forward (encoder + flow)
-        runs in bf16 on tensor cores, ~1.5-2x faster on L40S with no accuracy
-        loss in inference. We cast the returned tensors back to fp32 so the
-        cached chain/logprob/encoder are stored in the same precision as the
-        PPO/GRPO update expects."""
+        so we can skip the encoder during the update."""
         rep = policy_replicas[rep_idx]
         stream = _replica_streams[rep_idx] if _replica_streams is not None else None
         ctx = torch.cuda.stream(stream) if stream is not None else _NullCtx()
@@ -188,7 +183,7 @@ def collect_rollouts(policy, vec_env, schedule, sigmas, device,
                                             # the same logged noise step.
                 return_cond=True, return_noise_step=True,
             )
-            # Cast back to fp32 so downstream PPO/GRPO update sees expected dtype.
+            # Cast back to fp32 so the GRPO update sees expected dtype.
             actions = actions.float()
             chain = chain.float()
             logp = logp.float()
@@ -220,7 +215,7 @@ def collect_rollouts(policy, vec_env, schedule, sigmas, device,
             batch_np[key] = stacked
         # Each env's actual object, tagged onto obs by the worker. Using one
         # global name feeds the wrong text condition on mixed-object sets.
-        object_names = [(worker_history[idx][-1].get("_object_name") or FLAGS.objects)
+        object_names = [(worker_history[idx][-1].get("_object_name") or default_object)
                         for idx in ready_idxs]
 
         _t_pol = time.perf_counter()
@@ -289,7 +284,7 @@ def collect_rollouts(policy, vec_env, schedule, sigmas, device,
             action_seqs[j, :, 14] = np.where(action_seqs[j, :, 14] > GRIP_MID,
                                              GRIP_CLOSED, GRIP_OPEN)
             # Slice the cached encoder output for env j and move to CPU for
-            # storage. Used to skip the encoder forward during PPO update.
+            # storage. Used to skip the encoder forward during the update.
             if isinstance(cond_out, dict):
                 cond_j = {k: (v[j:j+1].detach().cpu() if isinstance(v, torch.Tensor) else v[j:j+1])
                           for k, v in cond_out.items()}
@@ -299,7 +294,7 @@ def collect_rollouts(policy, vec_env, schedule, sigmas, device,
                 "encoder_out": cond_j,
                 "chain": chain[j].detach().cpu(),
                 "logprob": float(logp[j].item()),
-                "noise_step": int(n_step),  # matches the step PPO must recompute at
+                "noise_step": int(n_step),  # matches the step the update recomputes at
             }
             vec_env.send_chunk(idx, action_seqs[j])
             executing_workers.add(idx)
@@ -329,6 +324,7 @@ def collect_rollouts(policy, vec_env, schedule, sigmas, device,
             **pending_policy_output[idx],
             "reward": batch_reward,
             "done": bool(batch_done),
+            "time": float(transitions[-1]["time"]) if transitions else 0.0,
         })
         worker_history[idx] = payload["obs_history"]
 
@@ -390,7 +386,7 @@ def collect_rollouts(policy, vec_env, schedule, sigmas, device,
                     and len(finished_eps) < n_episodes)):
             ready_workers.add(idx)
 
-    dispatch_wait_s = float(FLAGS.dispatch_wait_ms) / 1000.0
+    dispatch_wait_s = float(dispatch_wait_ms) / 1000.0
     while (len(finished_eps) < n_episodes
            or (min_eps_per_group and min(group_ep_counter) < min_eps_per_group)):
         # Briefly poll executing workers so stragglers can join this dispatch,

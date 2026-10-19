@@ -1,4 +1,6 @@
 import json
+import os
+import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 import cv2
@@ -87,9 +89,14 @@ def _strip_bodies(xml_path, name_contains):
                         to_remove.append(child)
                 for c in to_remove:
                     section.remove(c)
-    out = xml_path.parent / (xml_path.stem + "_tmp_noceiling.xml")
-    tree.write(str(out), xml_declaration=True)
-    return out
+    # Next to the original, since its asset paths are relative to it, and
+    # uniquely named: workers loading the same scene at once would otherwise
+    # truncate and delete each other's copy mid-read.
+    fd, out = tempfile.mkstemp(dir=xml_path.parent, prefix=xml_path.stem + "_",
+                               suffix="_noceiling.xml")
+    os.close(fd)
+    tree.write(out, xml_declaration=True)
+    return Path(out)
 
 
 def _floor_geom_ids(model):
@@ -302,7 +309,12 @@ class OccupancyMap:
         metadata.add_text("world_to_map", json.dumps(world_to_map.tolist()))
         metadata.add_text("map_to_world", json.dumps(map_to_world.tolist()))
         metadata.add_text("px_per_m", json.dumps(float(effective_px)))
-        img.save(str(out_path), pnginfo=metadata)
+        # Write then rename, so a reader never sees a half-written map.
+        fd, tmp_png = tempfile.mkstemp(dir=out_path.parent, prefix=out_path.stem + "_",
+                                       suffix=".png")
+        os.close(fd)
+        img.save(tmp_png, pnginfo=metadata)
+        os.replace(tmp_png, out_path)
         return out_path
 
     @classmethod

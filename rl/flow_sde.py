@@ -2,7 +2,7 @@
 
 Euler-Maruyama over the rectified flow with sigma_t = noise_level * sqrt((1-t)/t)
 in the t=0->1 (noise->clean) convention, which is what makes the flow's
-log-density tractable and therefore makes a PPO ratio well defined.
+log-density tractable and therefore makes the policy ratio well defined.
 """
 import sys
 from pathlib import Path
@@ -40,13 +40,13 @@ def sample_actions_sde(policy, obs_batch, schedule, sigmas, batch_size: int,
     """Stochastic flow rollout. Returns (actions, chain, [logprob], [cond]).
 
     Noise is injected at EXACTLY ONE flow step (`noise_step`); every other step
-    runs the deterministic flow update. Scoring a single step keeps the PPO ratio
+    runs the deterministic flow update. Scoring a single step keeps the ratio
     in a trust region: summing log-probs over all K steps compounds the 1/sigma^2
     sensitivity of the smallest-sigma step into ratio spikes.
 
     If return_cond=True, also returns the encoder output (`global_cond`). For
     token-memory encoders (dinov3_patches) this is a dict; for pooled encoders
-    it's a tensor. Caching this output lets the PPO update skip the heavy
+    it's a tensor. Caching this output lets the update skip the heavy
     encoder forward pass during recompute when the encoder is frozen.
     """
     cfg = policy.config
@@ -65,9 +65,8 @@ def sample_actions_sde(policy, obs_batch, schedule, sigmas, batch_size: int,
     chain = torch.empty(batch_size, K + 1, H, A, device=device)
     chain[:, 0] = naction
     logprob = chain.new_zeros(batch_size) if compute_logprob else None
-    # Default to a RANDOM noise_step (uniform across flow steps) matching
-    # main_ppopi's `per_sample_logprob=False` behavior. Hardcoding noise_step=0
-    # only ever supervises the very first flow step, biasing the policy.
+    # Default to a random noise_step, uniform across flow steps. Hardcoding
+    # noise_step=0 only ever supervises the very first flow step, biasing the policy.
     if noise_step is None:
         noise_step_int = int(torch.randint(0, K, (1,)).item())
     else:
@@ -108,8 +107,8 @@ def recompute_chain_logprob_cached(policy, encoder_out, chain, sigmas, schedule,
     """Recompute chain log-prob skipping the encoder. `encoder_out` is the
     cached output of `policy._build_cond` from rollout time. Safe because
     the encoder is frozen. `noise_step` may be a scalar or a tensor of shape
-    (B,) — when a tensor, we do a SINGLE flow_model forward with per-sample
-    t (matching main_ppopi). This is critical for memory: looping over
+    (B,); when a tensor, we do a SINGLE flow_model forward with per-sample
+    t. This is critical for memory: looping over
     unique noise_steps and re-running the flow model would keep K forwards
     of activations for backward."""
     cfg = policy.config
@@ -123,7 +122,7 @@ def recompute_chain_logprob_cached(policy, encoder_out, chain, sigmas, schedule,
         global_cond = encoder_out
         memory = None
 
-    # Per-sample noise step (or scalar) — single flow forward, per-sample t.
+    # Per-sample noise step (or scalar): single flow forward, per-sample t.
     if isinstance(noise_step, torch.Tensor):
         n = noise_step.long()
     else:
@@ -221,7 +220,7 @@ def recompute_chain_logprob(policy, obs_batch, chain, sigmas, schedule, batch_si
     """Re-roll the deterministic flow on a stored chain. Returns log-prob (B,).
 
     Scores the single flow step `noise_step` across the (H, A) dims.
-    If False, only one step (noise_step) is evaluated — must pass noise_step.
+    If False, only one step (noise_step) is evaluated, so pass noise_step.
     """
     cfg = policy.config
 
