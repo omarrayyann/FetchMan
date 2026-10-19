@@ -11,7 +11,7 @@
 - [x] Data Generation
 - [x] HF Data Release
 - [x] Behavior Cloning
-- [ ] Reinforcement Learning
+- [x] Reinforcement Learning
 - [ ] Benchmark
 
 ## Setup
@@ -52,7 +52,28 @@ python -u train/main.py \
     --eval_interval=1000 --eval_episodes=25 --eval_num_envs=8 --eval_render_gpu=1
 ```
 
-<img src="https://github.com/user-attachments/assets/0eb8fa9b-03a4-42c1-841d-4227e88e3006" width="50%" alt="Training loss and evaluation success rate">
+<img src="https://github.com/user-attachments/assets/327b6cbe-21a7-4fc8-b946-b1d2c5796417" width="100%" alt="Training loss and evaluation success rate">
+
+4. Fine-tune the behavior-cloned policy with RL, scored on a fixed benchmark.
+
+```bash
+# export 200 successful resets to replay as a fixed eval set
+python main.py --env=molmospaces/configs/bowl_pick.py --episodes=450 \
+    --save_json=molmospaces/assets/eval_sets/bowl_pick_200.jsonl
+
+python -u rl/main.py \
+    --checkpoint=exp/g1/Debug/<run>/step=00016000.ckpt \
+    --env=molmospaces/configs/bowl_pick.py \
+    --num_groups=32 --group_size=8 --parallel_envs=64 \
+    --noise_level=0.7 --num_sampling_steps=10 --actor_lr=5e-6 \
+    --time_limit=40 --max_steps_per_episode=15000 \
+    --gpu=0 --render_gpus=1,2,3,4,5,6,7 \
+    --eval_every_n_updates=10 --save_every_n_updates=10 \
+    --eval_episodes_json=molmospaces/assets/eval_sets/bowl_pick_200.jsonl \
+    --run_name=bowl_pick_grpo
+```
+
+<img src="https://github.com/user-attachments/assets/2b4d1b00-ec03-4f3a-952f-8c6531dabc6d" width="100%" alt="Benchmark success rate, episode length, and fraction of groups giving gradient">
 
 ## Citation
 

@@ -240,11 +240,13 @@ class EnvEvalCallback(Callback):
         dataset_fps: int = 10,
         eval_at_resume_start: bool = True,
         episodes_json: str | None = None,
+        eval_seed: int = 777000,
     ):
         """In-training eval: rolls the policy in env workers every N steps and logs success rate."""
         self._env_config = env_config
         self._every_n_steps = every_n_steps
         self._episodes = episodes
+        self._eval_seed = int(eval_seed)
         self._time_limit = time_limit
         self._num_envs = int(num_envs)
         # Fixed benchmark: replay this JSONL of exported reset states every eval
@@ -317,8 +319,18 @@ class EnvEvalCallback(Callback):
         if ema_cb is not None:
             ema_cb._swap_models(pl_module)
             swapped_ema = True
+        # The flow sampler draws its starting noise from the global torch RNG
+        # (FlowPolicy.sample_actions), which nothing seeds, so each eval scored the
+        # policy plus a fresh random draw. Measured on the RL side of this codebase:
+        # the same checkpoint returned 0.36-0.56 across identical runs and curves
+        # swung +-11 points with no learning. Pinning it makes an eval measure the
+        # policy. fork_rng keeps that fixed seed out of the training stream, which
+        # would otherwise restart from the same point after every eval.
+        rng_devices = [pl_module.device] if pl_module.device.type == "cuda" else []
         try:
-            metrics = self._evaluate(pl_module, step)
+            with torch.random.fork_rng(devices=rng_devices):
+                torch.manual_seed(self._eval_seed)
+                metrics = self._evaluate(pl_module, step)
         finally:
             if swapped_ema:
                 ema_cb._swap_models(pl_module)

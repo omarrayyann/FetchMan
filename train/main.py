@@ -78,6 +78,7 @@ flags.DEFINE_integer('eval_episodes', 75, 'Number of episodes per environment ev
 flags.DEFINE_integer('eval_num_envs', 10, 'Parallel env workers used during evaluation. 1 = serial.')
 flags.DEFINE_list('eval_render_gpu', ['0'], 'Comma-separated nvidia-smi indices to round-robin eval workers across (via EGL). e.g. --eval_render_gpu=0,1,2,3 spreads 8 workers across 4 render GPUs (2/GPU). Single value (e.g. --eval_render_gpu=3) puts all workers on one render GPU. -1 = auto-pick the trainer GPU.')
 flags.DEFINE_string('eval_episodes_json', '', 'JSONL of exported reset states (the fixed benchmark). When the file exists, training eval replays exactly these episodes instead of random resets. Empty string disables (random-reset eval).')
+flags.DEFINE_integer('eval_seed', 777000, 'Seed for the flow sampler during environment evaluation. Fixed so each eval scores the policy rather than the policy plus a fresh noise draw; it is forked, so the training RNG stream is unaffected.')
 flags.DEFINE_float('eval_time_limit', 50.0, 'Per-episode environment evaluation time limit in seconds.')
 flags.DEFINE_boolean('eval_grasp_only', False, 'Evaluate in the grasp-only regime by teleporting the base to the grasp goal pose.')
 flags.DEFINE_boolean('eval_at_resume_start', False, 'When resuming from a checkpoint, run one eval pass before training begins. Disable to skip the initial eval and jump straight into training.')
@@ -135,6 +136,7 @@ def _build_callbacks(fps):
                 dataset_fps=int(fps),
                 eval_at_resume_start=FLAGS.eval_at_resume_start,
                 episodes_json=FLAGS.eval_episodes_json,
+                eval_seed=FLAGS.eval_seed,
             )
         )
     return callbacks
