@@ -12,7 +12,7 @@
 - [x] HF Data Release
 - [x] Behavior Cloning
 - [x] Reinforcement Learning
-- [ ] Benchmark
+- [x] Benchmark
 
 ## Setup
 
@@ -77,30 +77,35 @@ python -u rl/main.py \
 
 ## Benchmark
 
-`bowls` holds 100 bowl picks across 10 held-out houses, each a saved reset state the benchmark restores exactly.
+Each benchmark is a set of saved reset states that it restores exactly.
 
-1. Download the BC and RL checkpoints, and the houses the benchmark uses.
+1. Download the BC and RL checkpoints, and the houses the benchmarks use.
 
 ```bash
 hf download omarrayyann/fetchman --local-dir checkpoints
-python molmospaces/scripts/download_scenes.py --benchmark bowls
+python molmospaces/scripts/download_scenes.py --benchmark bowls all
 ```
 
-2. Score a checkpoint (`bowls_bc` or `bowls_rl`).
+2. Score a checkpoint (`bowls_bc`, `bowls_rl`, `all_bc` or `all_rl`) on its benchmark.
 
 ```bash
 python benchmark/main.py --checkpoint=checkpoints/bowls_rl/model.ckpt --benchmark=bowls \
     --gpu=0 --render_gpus=1,2,3,4,5,6,7
 ```
 
-| bowls | success rate |
-|---|---|
-| Behavior Cloning | 62 |
-| + Reinforcement Learning | 79 |
+| bowls (100 episodes) | Behavior Cloning | + Reinforcement Learning |
+|---|---|---|
+| success rate | 62 | 79 |
 
 <img src="https://huggingface.co/omarrayyann/fetchman/resolve/main/media/bowls_bc_vs_rl.gif" width="100%" alt="The same five bowls episodes rolled out by BC (top) and BC + RL (bottom); green marks a success, red a failure">
 
-Success rates are noisy: one pass over 100 episodes moves by several points. A larger benchmark will be added.
+| all (450 episodes) | Behavior Cloning | + Reinforcement Learning |
+|---|---|---|
+| success rate | 29 | 42 |
+
+<img src="https://huggingface.co/omarrayyann/fetchman/resolve/main/media/all_bc_vs_rl.gif" width="100%" alt="The same five all-objects episodes rolled out by BC (top) and BC + RL (bottom); green marks a success, red a failure">
+
+Success rates are noisy: one pass moves by several points. The `all` benchmark here is larger than the 50 episodes in the paper, and larger benchmarks will be added.
 
 ## Citation
 

@@ -3,7 +3,7 @@
     python benchmark/main.py --checkpoint=path/to/step.ckpt --benchmark=bowls
 
 A benchmark is a JSONL of exported reset states in molmospaces/assets/eval_sets/,
-named by its stem (bowls, bowl_pick) or given as a path. Every episode
+named by its stem (bowls, all, bowl_pick) or given as a path. Every episode
 restores its saved state, through the same evaluation rl/main.py logs during
 training. Takes BC and RL checkpoints alike.
 
@@ -34,7 +34,7 @@ from vec_env import VecEnv
 
 flags.DEFINE_string("checkpoint", None, "BC or RL checkpoint to score.")
 flags.DEFINE_string("benchmark", "bowls",
-                    "Eval set name (bowls, bowl_pick) or a path to a JSONL of reset states.")
+                    "Eval set name (bowls, all, bowl_pick) or a path to a JSONL of reset states.")
 flags.DEFINE_integer("gpu", 0, "GPU for the policy.")
 flags.DEFINE_list("render_gpus", ["0"], "GPUs the env workers render on.")
 flags.DEFINE_integer("num_envs", 64, "Parallel env workers, capped at the number of episodes.")
