@@ -8,12 +8,6 @@
   <img src="https://github.com/user-attachments/assets/1721c6c0-060a-4661-b4fb-bb7ec2c10746" width="100%" alt="Scripted pick demonstrations collected in parallel across randomized houses">
 </p>
 
-- [x] Data Generation
-- [x] HF Data Release
-- [x] Behavior Cloning
-- [x] Reinforcement Learning
-- [x] Benchmark
-
 ## Setup
 
 ```bash
